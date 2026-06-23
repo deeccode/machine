@@ -1,146 +1,222 @@
-import { useState } from "react";
-import Dashboard from "./Dashboard";
+// @ts-nocheck
+import './App.css' 
+import { useState, useEffect, useCallback } from "react";
+import { LS, seedDemoData } from "./utils/storage";
+import { Icon } from "./components/Icon";
+import { AuthScreen } from "./screens/AuthScreen";
+import { POSScreen } from "./screens/POSScreen";
+import { DashboardScreen } from "./screens/DashboardScreen";
+import { ProductsScreen } from "./screens/ProductsScreen";
+import { InventoryScreen } from "./screens/InventoryScreen";
+import { SuppliersScreen } from "./screens/SuppliersScreen";
+import { TransactionsScreen } from "./screens/TransactionsScreen";
+import { ReportsScreen } from "./screens/ReportsScreen";
+import { UsersScreen } from "./screens/UsersScreen";
+import { SettingsScreen } from "./screens/SettingsScreen";
 
-function App() {
-  const [username, setUsername] = useState("");
-  const [pin, setPin] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [error, setError] = useState("");
+export default function App() { 
 
-  // USERS
-  const users = [
-    {
-      username: "admin",
-      pin: "0000",
-    },
-  ];
+  const [user, setUser] = useState(null); 
 
-  // LOGIN FUNCTION
-  const handleLogin = (e) => {
-    e.preventDefault();
+  const [activeTab, setActiveTab] = useState("pos"); 
 
-    const validUser = users.find(
-      (user) =>
-        user.username === username &&
-        user.pin === pin
-    );
+  const [notification, setNotification] = useState(null); 
 
-    if (validUser) {
-      setIsLoggedIn(true);
-      setError("");
-    } else {
-      setError("Incorrect username or PIN");
-    }
-  };
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
 
-  // DASHBOARD PAGE
-  if (isLoggedIn) {
-    return (
-      <Dashboard
-        username={username}
-        setIsLoggedIn={setIsLoggedIn}
-        setUsername={setUsername}
-        setPin={setPin}
-      />
-    );
-  }
+  useEffect(() => { 
 
-  // LOGIN PAGE
-  return (
-    <div className="flex min-h-screen 
-    items-center justify-center 
-    bg-gradient-to-br 
-    from-blue-700 via-indigo-700 
-    to-purple-700 px-4 py-6">
+    seedDemoData(); 
 
-      {/* LOGIN CARD */}
-      <div className="w-80 h-100 max-w-md 
-      rounded-[30px] bg-white 
-      px-6 py-10 shadow-2xl 
-      sm:px-10">
+    const session = LS.get("pos_session"); 
 
-        {/* ICON */}
-        <div className="mb-8 text-center">
+    if (session) { 
 
-          <div className="mb-4 flex justify-center">
-            <div className="flex h-20 w-20 items-center 
-            justify-center rounded-full bg-gray-100 
-            text-4xl shadow-inner">
-              🛒
-            </div>
+      const users = LS.get("pos_users", []); 
+
+      const u = users.find(u => u.id === session.userId); 
+
+      if (u) setUser(u); 
+
+    } 
+
+  }, []); 
+  
+  const notify = (msg, type = "success") => { 
+
+    setNotification({ msg, type }); 
+
+    setTimeout(() => setNotification(null), 3000); 
+
+  }; 
+
+  const logout = () => { LS.del("pos_session"); setIsMobileMenuOpen(false);
+   setUser(null); setActiveTab("pos"); }; 
+
+  const selectTab = (tabId) => { setActiveTab(tabId); setIsMobileMenuOpen(false); }; 
+
+  const settings = LS.get("pos_settings", {}); 
+
+  if (!user) return <AuthScreen onLogin={u => { setUser(u); setActiveTab(u.role === "admin" ? "dashboard" : "pos"); }} />; 
+
+  const navItems = [ 
+
+    { id: "pos", label: "POS", icon: "scan", roles: ["admin", "cashier"] }, 
+
+    { id: "dashboard", label: "Dashboard", icon: "dashboard", roles: ["admin"] }, 
+
+    { id: "products", label: "Products", icon: "product", roles: ["admin"] }, 
+
+    { id: "inventory", label: "Inventory", icon: "alert", roles: ["admin"] }, 
+
+    { id: "suppliers", label: "Suppliers", icon: "supplier", roles: ["admin"] }, 
+
+    { id: "transactions", label: "History", icon: "history", roles: ["admin", "cashier"] }, 
+
+    { id: "reports", label: "Reports", icon: "report", roles: ["admin"] }, 
+
+    { id: "users", label: "Users", icon: "users", roles: ["admin"] }, 
+
+    { id: "settings", label: "Settings", icon: "settings", roles: ["admin"] }, 
+
+  ].filter(n => n.roles.includes(user.role)); 
+  return ( 
+    <div className={`app-shell ${isMobileMenuOpen ? "mobile-menu-open" : ""}`} 
+    style={{ display: "flex", width: "100vw", height: "100dvh", fontFamily: "'Segoe UI', system-ui, sans-serif", background: "#0f172a", overflow: "hidden" }}> 
+
+      {isMobileMenuOpen && <button className="mobile-menu-backdrop" aria-label="Close navigation menu" onClick={() => setIsMobileMenuOpen(false)} />}
+
+      {/* Sidebar */} 
+
+      <div className="app-sidebar" style={{ width: 200, background: "#1e293b", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", flexShrink: 0 }}> 
+
+        <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}> 
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}> 
+            <span style={{ fontSize: 28 }}>🛒</span> 
+            <div> 
+              <div style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>{(settings.storeName || "Fevy").split(" ")[0]}</div> 
+              <div style={{ color: "#22c55e", fontSize: 10, fontWeight: 600 }}>POS System</div> 
+            </div> 
+          </div> 
+          <button className="mobile-menu-close" aria-label="Close navigation menu" onClick={() => setIsMobileMenuOpen(false)} type="button">
+            <Icon name="x" size={18} />
+          </button>
+        </div> 
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }}> 
+          {navItems.map(n => ( 
+            <button key={n.id} onClick={() => selectTab(n.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 4, transition: "all 0.15s", background: activeTab === n.id ? "rgba(34,197,94,0.15)" : "transparent", color: activeTab === n.id ? "#22c55e" : "rgba(255,255,255,0.55)", fontWeight: activeTab === n.id ? 600 : 400, fontSize: 13 }}> 
+              <Icon name={n.icon} size={16} /> 
+              {n.label} 
+            </button> 
+          ))} 
+        </div> 
+        <div 
+        style={{
+           padding: "12px 8px", 
+           borderTop: "1px solid rgba(255,255,255,0.05)"
+            }}> 
+          <div
+           style={{
+             padding: "10px 12px",
+              marginBottom: 4
+               }}> 
+            <div
+             style={{
+               color: "#fff",
+                fontSize: 13,
+                 fontWeight: 600
+                  }}>{user.name}
+                  </div> 
+            <div 
+            style={{ 
+              color: "#22c55e", 
+              fontSize: 11,
+               textTransform: "uppercase",
+                letterSpacing: 1 }}>{user.role}
+                </div> 
+          </div> 
+          <button onClick={logout} 
+          style={{
+             width: "100%", 
+             display: "flex", 
+             alignItems: "center",
+              gap: 10,
+               padding: "10px 12px",
+                borderRadius: 10,
+                 border: "none", 
+                 cursor: "pointer", 
+                 background: "rgba(239,68,68,0.1)", 
+                 color: "#f87171", fontSize: 13, 
+                 fontWeight: 600 
+                 }}> 
+            <Icon name="logout" size={16} />
+             Sign Out 
+          </button> 
+        </div> 
+      </div> 
+      {/* Main Content */} 
+      <div className="app-main" 
+      style={{
+         flex: 1, 
+         overflow: "hidden",
+          display: "flex",
+           flexDirection: "column"
+            }}> 
+
+        <div className="mobile-topbar">
+          <button className="hamburger-button" aria-label="Open navigation menu" onClick={() => setIsMobileMenuOpen(true)} type="button">
+            <span />
+            <span />
+            <span />
+          </button>
+          <div>
+            <div 
+            className="mobile-store-name">
+              {settings.storeName || "Fevy POS System"}
+              </div>
+            <div
+             className="mobile-active-tab">
+              {navItems.find(n => n.id === activeTab)?.label || "POS"}
+             </div>
           </div>
-
-          <h1 className="text-3xl font-bold text-gray-800">
-            Fevy~Tech POS
-          </h1>
-
-          <p className="mt-2 text-sm text-gray-500">
-            Instant Barcode Scanner
-          </p>
         </div>
 
-        {/* LOGIN FORM */}
-        <form
-          onSubmit={handleLogin}
-          className="space-y-5 flex flex-col gap-4"
-        >
-          {/* USERNAME */}
-          <div>
-            <label className="mb-2 block text-xl font-semibold text-gray-700">
-              Username
-            </label>
+        {activeTab === "pos" && <POSScreen user={user} settings={settings} notify={notify} />} 
 
-            <input
-              type="text"
-              placeholder="Enter username"
-              value={username}
-              onChange={(e) =>
-                setUsername(e.target.value)
-              }
-              className="h-14 w-full rounded-xl border border-gray-300 px-4 text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
-              required
-            />
-          </div>
+        {activeTab === "dashboard" && <DashboardScreen settings={settings} />} 
 
-          {/* PIN */}
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">
-              PIN Code
-            </label>
+        {activeTab === "products" && <ProductsScreen notify={notify} settings={settings} />} 
 
-            <input
-              type="password"
-              placeholder="Enter 4-digit PIN"
-              maxLength={4}
-              value={pin}
-              onChange={(e) =>
-                setPin(e.target.value)
-              }
-              className="h-14 w-full rounded-xl border border-gray-300 px-4 text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
-              required
-            />
-          </div>
+        {activeTab === "inventory" && <InventoryScreen settings={settings} notify={notify} />} 
 
-          {/* ERROR */}
-          {error && (
-            <div className="rounded-xl bg-red-100 px-4 py-3 text-sm font-medium mt-4 text-red-600">
-              {error}
-            </div>
-          )}
+        {activeTab === "suppliers" && <SuppliersScreen notify={notify} />} 
 
-          {/* BUTTON */}
-          <button
-            type="submit"
-            className="w-full mt-4 h-14 rounded-xl bg-gradient-to-r from-indigo-500 to-blue-600 text-lg font-semibold text-white shadow-lg transition duration-300 hover:scale-[1.01] active:scale-[0.98]"
-          >
-            Login
-          </button>
+        {activeTab === "transactions" && <TransactionsScreen settings={settings} user={user} notify={notify} />} 
 
-        </form>
-
-      </div>
-    </div>
-  );
-}
-
-export default App;
+        {activeTab === "reports" && <ReportsScreen settings={settings} />} 
+        {activeTab === "users" && <UsersScreen notify={notify} currentUser={user} />} 
+        {activeTab === "settings" && <SettingsScreen notify={notify} settings={settings} />} 
+      </div> 
+      {/* Notification Toast */} 
+      {notification && ( 
+        <div className="notification-toast"
+        style={{ 
+          position: "fixed", 
+          top: 20,
+           right: 20,
+            zIndex: 9999,
+             padding: "14px 20px",
+              borderRadius: 12, 
+              boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
+               maxWidth: 320, fontSize: 14, 
+               fontWeight: 600, transition: "all 0.3s", 
+               background: notification.type === "success" ? "#16a34a" : notification.type === "error" ? "#dc2626" : "#d97706",
+                color: "#fff"
+                 }}> 
+          {notification.msg} 
+        </div> 
+      )} 
+    </div> 
+  ); 
+} 
